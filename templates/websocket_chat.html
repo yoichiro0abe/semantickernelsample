@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chat with Menu Agent (WebSocket)</title>
+        <style>
+            body {
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                font-family: Arial, sans-serif;
+            }
+            #chatbox {
+                height: 400px;
+                border: 1px solid #ddd;
+                padding: 10px;
+                overflow-y: auto;
+                margin-bottom: 10px;
+                border-radius: 5px;
+            }
+            #userinput {
+                width: 80%;
+                padding: 8px;
+                border-radius: 5px;
+                border: 1px solid #ddd;
+            }
+            #send {
+                width: 18%;
+                padding: 8px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            .user-message {
+                background-color: #e6f7ff;
+                padding: 8px;
+                border-radius: 5px;
+                margin: 5px 0;
+                text-align: right; /* Align user messages to the right */
+            }
+            .bot-message {
+                background-color: #f1f1f1;
+                padding: 8px;
+                border-radius: 5px;
+                margin: 5px 0;
+                text-align: left; /* Align bot messages to the left */
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Menu Agent Chat (WebSocket)</h1>
+        <div id="chatbox"></div>
+        <input type="text" id="userinput" placeholder="メッセージを入力してください..."/>
+        <button id="send">送信</button>
+        <script>
+            var ws = new WebSocket("ws://" + window.location.host + "/ws");
+            var clientId = localStorage.getItem('chatClientId'); // Try to get existing client ID
+            if (!clientId) {
+                clientId = Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('chatClientId', clientId); // Store new client ID
+            }
+            console.log("Using Client ID:", clientId);
+
+            ws.onopen = function(event) {
+                console.log("WebSocket connection opened.");
+                // Send init message with client ID
+                ws.send(JSON.stringify({type: 'init', clientId: clientId}));
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    var data = JSON.parse(event.data);
+                    console.log("Message received:", data);
+                    if (data.type === 'message' || data.type === 'stream_chunk') {
+                        var chatbox = document.getElementById('chatbox');
+                        var messageDiv = document.createElement('div');
+                        // Use sender to determine class
+                        messageDiv.className = data.sender === 'User' ? 'user-message' : 'bot-message';
+                        messageDiv.textContent = data.sender + ": " + data.message;
+                        chatbox.appendChild(messageDiv);
+                        chatbox.scrollTop = chatbox.scrollHeight; // Auto-scroll
+                    } else if (data.type === 'error') {
+                         var chatbox = document.getElementById('chatbox');
+                         var errorDiv = document.createElement('div');
+                         errorDiv.style.color = 'red';
+                         errorDiv.textContent = "Error: " + data.message;
+                         chatbox.appendChild(errorDiv);
+                         chatbox.scrollTop = chatbox.scrollHeight;
+                    } else if (data.type === 'info') { // Handle info messages
+                        console.log("Info:", data.message);
+                        // Optionally display info messages in the chat or console
+                    }
+                } catch (e) {
+                    console.error("Failed to parse message or update UI:", e);
+                    console.error("Received data:", event.data);
+                    // Display raw data if parsing fails
+                    var chatbox = document.getElementById('chatbox');
+                    var rawDiv = document.createElement('div');
+                    rawDiv.style.color = 'orange';
+                    rawDiv.textContent = "Received raw data: " + event.data;
+                    chatbox.appendChild(rawDiv);
+                }
+            };
+
+
+            ws.onerror = function(event) {
+                console.error("WebSocket error observed:", event);
+                var chatbox = document.getElementById('chatbox');
+                var errorDiv = document.createElement('div');
+                errorDiv.style.color = 'red';
+                errorDiv.textContent = "WebSocket connection error.";
+                chatbox.appendChild(errorDiv);
+            };
+
+            ws.onclose = function(event) {
+                console.log("WebSocket connection closed:", event.code, event.reason);
+                 var chatbox = document.getElementById('chatbox');
+                 var closeDiv = document.createElement('div');
+                 closeDiv.style.fontStyle = 'italic';
+                 closeDiv.textContent = "Connection closed.";
+                 chatbox.appendChild(closeDiv);
+            };
+
+            function sendMessage() {
+                 var input = document.getElementById('userinput');
+                 if (input.value && ws.readyState === WebSocket.OPEN) {
+                     console.log("Sending message:", input.value);
+                     // Display user message immediately (client-side)
+                     var chatbox = document.getElementById('chatbox');
+                     var messageDiv = document.createElement('div');
+                     messageDiv.className = 'user-message';
+                     messageDiv.textContent = "User: " + input.value; // Prefix with "User: "
+                     chatbox.appendChild(messageDiv);
+                     chatbox.scrollTop = chatbox.scrollHeight;
+
+                     // Send message to server
+                     ws.send(JSON.stringify({
+                         type: 'message',
+                         clientId: clientId,
+                         message: input.value
+                     }));
+
+                     input.value = ''; // Clear input after sending
+                 } else {
+                     console.warn("Cannot send message, WebSocket not open or input empty.");
+                     if (ws.readyState !== WebSocket.OPEN) {
+                         alert("Connection is not open. Please refresh the page.");
+                     }
+                 }
+            }
+
+            document.getElementById('send').onclick = sendMessage;
+
+            document.getElementById('userinput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        </script>
+    </body>
+</html>

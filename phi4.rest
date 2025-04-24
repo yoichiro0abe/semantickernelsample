@@ -1,0 +1,22 @@
+curl -X POST http://localhost:11434/api/generate -d '{
+  "model": "phi4",
+  "prompt":"ラーメンとうどんはどっちが美味しい？"
+ }'
+
+###
+
+curl http://localhost:11434/api/chat -d '{
+  "model": "phi4",
+  "messages": [
+    { "role": "user", "content": "ラーメンとうどんはどっちが美味しい？" }
+  ]
+}'
+###
+
+curl http://localhost:11434/api/chat -d '{
+  "model": "phi4",
+  "messages": [
+    { "role": "user", "content": "HTMLとJavascriptで〇×ゲーム作成して" }
+  ],
+  "stream": false
+}'

@@ -1,0 +1,95 @@
+POST https://kobe-lab-aoai-eastus2.openai.azure.com/openai/deployments/o3-mini/chat/completions?api-version=2025-01-01-preview HTTP/1.1
+Content-Type: application/json
+api-key: ****
+
+{
+   "messages":[
+      {
+         "role":"user",
+         "content":"琵琶湖の広さ教えて"
+      }
+   ],
+   "model":"o3-mini",
+   "stream":false,
+   "tool_choice":"auto",
+   "tools":[
+      {
+         "type":"function",
+         "function":{
+            "name":"Lights-change_state",
+            "description":"Changes the state of the light",
+            "parameters":{
+               "type":"object",
+               "properties":{
+                  "id":{
+                     "type":"integer"
+                  },
+                  "is_on":{
+                     "type":"boolean"
+                  }
+               },
+               "required":[
+                  "id",
+                  "is_on"
+               ]
+            }
+         }
+      },
+      {
+         "type":"function",
+         "function":{
+            "name":"Lights-get_lights",
+            "description":"Gets a list of lights and their current state",
+            "parameters":{
+               "type":"object",
+               "properties":{
+                  
+               },
+               "required":[
+                  
+               ]
+            }
+         }
+      },
+      {
+         "type":"function",
+         "function":{
+            "name":"Weather-get_weather",
+            "description":"Gets the weather forecast for a specific area and date.",
+            "parameters":{
+               "type":"object",
+               "properties":{
+                  "area_name":{
+                     "type":"string",
+                     "description":"The name of the area (e.g., 東京)"
+                  },
+                  "date_str":{
+                     "type":"string",
+                     "description":"The date for which to retrieve the forecast (e.g., 2024-03-15)"
+                  }
+               },
+               "required":[
+                  "area_name",
+                  "date_str"
+               ]
+            }
+         }
+      },
+      {
+         "type":"function",
+         "function":{
+            "name":"CurrentDate-get_current_time",
+            "description":"Gets the current time.",
+            "parameters":{
+               "type":"object",
+               "properties":{
+                  
+               },
+               "required":[
+                  
+               ]
+            }
+         }
+      }
+   ]
+}

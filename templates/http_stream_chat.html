@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chat with Menu Agent (HTTP Stream)</title>
+        <style>
+            body {
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                font-family: Arial, sans-serif;
+            }
+            #chatbox {
+                height: 400px;
+                border: 1px solid #ddd;
+                padding: 10px;
+                overflow-y: auto;
+                margin-bottom: 10px;
+                border-radius: 5px;
+            }
+            #userinput {
+                width: 80%;
+                padding: 8px;
+                border-radius: 5px;
+                border: 1px solid #ddd;
+            }
+            #send {
+                width: 18%;
+                padding: 8px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            .user-message {
+                background-color: #e6f7ff;
+                padding: 8px;
+                border-radius: 5px;
+                margin: 5px 0;
+                text-align: right; /* Align user messages to the right */
+            }
+            .bot-message {
+                background-color: #f1f1f1;
+                padding: 8px;
+                border-radius: 5px;
+                margin: 5px 0;
+                text-align: left; /* Align bot messages to the left */
+            }
+            .thinking {
+                font-style: italic;
+                color: #888;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Menu Agent Chat (HTTP Stream)</h1>
+        <div id="chatbox"></div>
+        <input type="text" id="userinput" placeholder="メッセージを入力してください..." autocomplete="off"/>
+        <button id="send">送信</button>
+        <script>
+            const chatbox = document.getElementById('chatbox');
+            const userInput = document.getElementById('userinput');
+            const sendButton = document.getElementById('send');
+
+            function addMessage(sender, message, className) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = className;
+                // Create separate elements for sender and message for styling if needed
+                const senderSpan = document.createElement('strong');
+                senderSpan.textContent = sender + ": ";
+                messageDiv.appendChild(senderSpan);
+                const messageSpan = document.createElement('span');
+                // Use innerHTML to render potential line breaks correctly if needed
+                // Be cautious if the message content is not trusted
+                messageSpan.textContent = message; // Safer default
+                messageDiv.appendChild(messageSpan);
+
+                chatbox.appendChild(messageDiv);
+                chatbox.scrollTop = chatbox.scrollHeight; // Auto-scroll
+                return messageDiv; // Return the div for potential updates
+            }
+
+            async function sendMessage() {
+                const message = userInput.value.trim();
+                if (!message) return;
+
+                // Disable input/button during processing
+                userInput.disabled = true;
+                sendButton.disabled = true;
+
+                // Display user message
+                addMessage('User', message, 'user-message');
+                userInput.value = ''; // Clear input
+
+                // Create placeholder for bot response
+                const botMessageDiv = addMessage('Host', '', 'bot-message thinking');
+                const botMessageSpan = botMessageDiv.querySelector('span'); // Get the span to update
+                botMessageSpan.textContent = "Thinking..."; // Placeholder text
+
+                try {
+                    // Make fetch request to the /chat endpoint
+                    const response = await fetch(`/chat?message=${encodeURIComponent(message)}`);
+
+                    if (!response.ok) {
+                        // Handle HTTP errors
+                        const errorText = await response.text();
+                        botMessageSpan.textContent = `Error: ${response.status} ${response.statusText}. ${errorText || 'No details provided.'}`;
+                        botMessageDiv.classList.remove('thinking');
+                        botMessageDiv.style.color = 'red';
+                        console.error("Server error:", response.status, errorText);
+                        // Re-enable here if stopping processing
+                        userInput.disabled = false;
+                        sendButton.disabled = false;
+                        userInput.focus();
+                        return; // Stop processing on error
+                    }
+
+                    // Process the streaming response
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let botResponseText = '';
+                    botMessageDiv.classList.remove('thinking'); // Remove thinking style
+                    botMessageSpan.textContent = ''; // Clear placeholder
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break; // Stream finished
+                        const chunk = decoder.decode(value, { stream: true });
+                        botResponseText += chunk;
+                        botMessageSpan.textContent = botResponseText; // Update the bot message span incrementally
+                        chatbox.scrollTop = chatbox.scrollHeight; // Keep scrolling
+                    }
+
+                } catch (error) {
+                    // Handle network or other fetch errors
+                    console.error('Fetch error:', error);
+                    botMessageSpan.textContent = "Error connecting to the server or processing the stream.";
+                    botMessageDiv.classList.remove('thinking');
+                    botMessageDiv.style.color = 'red';
+                } finally {
+                    // Re-enable input/button (ensure this runs even after errors)
+                    userInput.disabled = false;
+                    sendButton.disabled = false;
+                    userInput.focus(); // Set focus back to input
+                }
+            }
+
+            sendButton.onclick = sendMessage;
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !userInput.disabled) { // Prevent sending while disabled
+                    sendMessage();
+                }
+            });
+
+             // Initial focus on input
+             userInput.focus();
+        </script>
+    </body>
+</html>
